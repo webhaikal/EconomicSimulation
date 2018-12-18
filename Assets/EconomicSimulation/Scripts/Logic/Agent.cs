@@ -1,147 +1,106 @@
-﻿using System.Collections;
+﻿using Nashet.Utils;
+using Nashet.ValueSpace;
 using System.Collections.Generic;
 using UnityEngine;
-using Nashet.ValueSpace;
-using Nashet.Utils;
 
 namespace Nashet.EconomicSimulation
 {
-
     /// <summary>
     /// represent ability to take loans/deposits
     /// </summary>
-    abstract public class Agent : IHasCountry, IStatisticable
-    {
-        /// <summary> Used to calculate income tax, now it's only for statistics </summary>
-        public Money moneyIncomeThisTurn = new Money(0);
-        protected readonly Money moneyIncomeLastTurn = new Money(0);
-        private readonly Money cash = new Money(0);
-        public ReadOnlyValue Cash { get { return cash; } }
+    public abstract class Agent : IHasCountry, IStatisticable
+    {       
+        protected readonly Money cash = new Money(0);
+        public MoneyView Cash { get { return cash; } }
 
+        public readonly Register Register = new Register();
+        public readonly Register FailedPayments = new Register(false); 
 
         /// <summary> could be null</summary>
         //private Bank bank;
-        public Money loans = new Money(0);
-        public Money deposits = new Money(0);
 
-        public Money incomeTaxPayed = new Money(0);
+        public Money loans = new Money(0);
+
+        public Money deposits = new Money(0);
+       
 
         public abstract void simulate();
-        protected Country country;
+
+        //private Country country;
+
         public Country Country
         {
             //get { return province.Country; }
-            get { return country; }
+            get;//{ return country; }
+            protected set; //{ country = value; 
+                
         }
+
         protected Agent(Country country)
         {
-            this.country = country;
+            Country = country;           
         }
+
         public void OnProvinceOwnerChanged(Country newOner)
         {
-            country = newOner;
+            Country = newOner;
         }
-        internal void GiveMoneyFromNoWhere(float money)
+
+        public void GiveMoneyFromNoWhere(decimal money)
         {
             cash.Add(money);
         }
-        internal void GiveMoneyFromGoldPit(Storage gold)
-        {
-            this.moneyIncomeThisTurn.Add(gold);
-            Money sentToGovernment = Money.CovertFromGold(gold.Copy().Multiply(Options.GovernmentTakesShareOfGoldOutput));
-            gold.SendAll(cash);
-            //send 50% to government            
-            Pay(country, sentToGovernment);
-            country.goldMinesIncomeAdd(sentToGovernment);
-        }
+
         public virtual void SetStatisticToZero()
         {
-            moneyIncomeLastTurn.Set(moneyIncomeThisTurn);
-            moneyIncomeThisTurn.Set(0f);
-            incomeTaxPayed.SetZero();
+            Register.SetStatisticToZero();
+            FailedPayments.SetStatisticToZero();
         }
-        /// <summary> Returns difference between moneyIncomeLastTurn and value</summary>    
+
+        /// <summary> Returns difference between moneyIncomeLastTurn and value</summary>
         //protected Value getSpendingLimit(ReadOnlyValue value)
         //{
         //    return moneyIncomeLastTurn.Copy().Subtract(value, false);
         //}
-                
-        
 
         public Bank Bank
         {
             get
             {
-                if (country == null)
+                if (Country == null)
                     return null; // to deal with no-country Agents like Market
                 else
-                    return country.Bank;
+                    return Country.Bank;
             }
         }
 
-        //public void setBank(Bank bank)
-        //{
-        //    this.bank = bank;
-        //}
-        /// <summary> Includes deposits. New value </summary>    
-        public Value getMoneyAvailable()
+        /// <summary> Includes deposits. New value </summary>
+        public MoneyView getMoneyAvailable()
         {
             if (Bank == null)
-                return cash.Copy();
+                return cash;
             else
                 return cash.Copy().Add(Bank.HowMuchDepositCanReturn(this));//that's new Value
         }
-        //new internal bool canPay(Value howMuchPay)
-        //{
-        //    return getMoneyTotal().isBiggerOrEqual(howMuchPay);
-        //}
-        ///// <summary>
-        ///// depreciated
-        ///// </summary>    
-        //private bool canPay(float howMuchPay)
-        //{
-        //    throw new DontUseThatMethod();
-        //}
-        //internal CountryWallet getCountryWallet()
-        //{
-        //    if (this is Country)
-        //        return wallet as CountryWallet;
-        //    else
-        //        return null;
-        //}
-        //todo should be Value
-        //public float getLoans()
-        //{
-        //    if (loans.get() > 0f)
-        //        return loans.get();
-        //    else
-        //        return 0f;
-        //}
-        //public float getDeposits()
-        //{
-        //    if (loans.get() > 0f)
-        //        return 0f;
-        //    else
-        //        return loans.get() * -1f;
-        //}
-        //***************
+
+
         /// <summary>
         /// Ignores if need is available on market or not
         /// </summary>
-        internal bool CanAfford(Storage need)
+        public bool CanAfford(Storage need)
         {
             Storage realNeed;
             if (need.isAbstractProduct())
-                //realNeed = new Storage(Game.market.getCheapestSubstitute(need).Product, need);
-                realNeed = Game.market.GetRandomCheapestSubstitute(need);
+                //realNeed = new Storage(Country.market.getCheapestSubstitute(need).Product, need);
+                realNeed = Country.market.GetRandomCheapestSubstitute(need);
             else
                 realNeed = need;
 
-            return CanPay(Game.market.getCost(realNeed));
-            //return realNeed.IsEqual(HowMuchCanAfford(realNeed));                
+            return CanPay(Country.market.getCost(realNeed));
+            //return realNeed.IsEqual(HowMuchCanAfford(realNeed));
         }
 
-        internal bool CanAfford(StorageSet need)
+        public bool CanAfford(StorageSet need)
         {
             foreach (Storage stor in need)
             {
@@ -151,7 +110,8 @@ namespace Nashet.EconomicSimulation
             }
             return true;
         }
-        internal bool CanAfford(List<Storage> need)
+
+        public bool CanAfford(IEnumerable<Storage> need)
         {
             foreach (Storage stor in need)
                 //if (HowMuchCanAfford(stor).isSmallerThan(stor))
@@ -159,76 +119,80 @@ namespace Nashet.EconomicSimulation
                     return false;
             return true;
         }
-        /// <summary> Including deposits </summary>    
-        internal Storage HowMuchCanAfford(Storage need)
+
+        /// <summary> Including deposits </summary>
+        public Storage HowMuchCanAfford(Storage need)
         {
-            ReadOnlyValue cost = Game.market.getCost(need);
+            MoneyView cost = Country.market.getCost(need);
             if (CanPay(cost))
                 return new Storage(need);
             else
-                return new Storage(need.Product, getMoneyAvailable().Divide(Game.market.getPrice(need.Product)));
+                return new Storage(need.Product, (float)getMoneyAvailable().Copy().Divide(Country.market.getCost(need.Product).Get()).Get());
         }
+
         /// <summary>WARNING! Can overflow if money > cost of need. use CanAfford before </summary>
-        //internal Value HowMuchCanNotAfford(PrimitiveStorageSet need)
+        //public Value HowMuchCanNotAfford(PrimitiveStorageSet need)
         //{
-        //    return new Value(Game.market.getCost(need).get() - this.cash.get());
+        //    return new Value(Country.market.getCost(need).get() - this.cash.get());
         //}
         /// <summary>WARNING! Can overflow if money > cost of need. use CanAfford before </summary>
-        //internal Value HowMuchCanNotAfford(float need)
+        //public Value HowMuchCanNotAfford(float need)
         //{
         //    return new Value(need - this.cash.get());
         //}
 
-        /// <summary> Says how much money lack of desiredSum (counting cash and deposits in bank). New value. 
+        /// <summary> Says how much money lack of desiredSum (counting cash and deposits in bank). New value.
         /// Goes nut if cash + deposits >= desiredSum, no need for extra money, check that outside
-        /// </summary>        
-        internal Value HowMuchLacksMoneyIncludingDeposits(ReadOnlyValue desiredSum)
+        /// </summary>
+        public MoneyView HowMuchLacksMoneyIncludingDeposits(MoneyView desiredSum)
         {
             return desiredSum.Copy().Subtract(getMoneyAvailable(), false);
         }
+
         /// <summary>
         /// Says how much money lack of desiredSum (counting cash only). New value
         /// Says zero if cash >= desiredSum, no need for extra money
-        /// </summary>        
-        internal Value HowMuchLacksMoneyCashOnly(ReadOnlyValue desiredSum)
+        /// </summary>
+        public MoneyView HowMuchLacksMoneyCashOnly(MoneyView desiredSum)
         {
             return desiredSum.Copy().Subtract(cash, false);
         }
-        //internal Value HowMuchMoneyCanNotPay(Value value)
+
+        //public Value HowMuchMoneyCanNotPay(Value value)
         //{
         //    return new Value(value.get() - this.cash.get());
         //}
         /// <summary>WARNING! Can overflow if money > cost of need. use CanAfford before </summary>
-        //internal Value HowMuchCanNotAfford(Storage need)
+        //public Value HowMuchCanNotAfford(Storage need)
         //{
-        //    return new Value(Game.market.getCost(need) - this.cash.get());
+        //    return new Value(Country.market.getCost(need) - this.cash.get());
         //}
-
 
         //private float get()
         //{
         //    throw new NotImplementedException();
         //}
 
-        //internal bool canPay(Value howMuchPay)
+        //public bool canPay(Value howMuchPay)
         //{
         //    if (this.cash.get() >= howMuchPay.get())
         //        return true;
         //    else return false;
         //}
-        //internal bool canPay(float howMuchPay)
+        //public bool canPay(float howMuchPay)
         //{
         //    if (this.cash.get() >= howMuchPay)
         //        return true;
         //    else
         //        return false;
         //}
-        /// <summary> Counting deposit and cash </summary>    
-        internal bool CanPay(ReadOnlyValue howMuchPay)
+        /// <summary> Counting deposit and cash </summary>
+        public bool CanPay(MoneyView howMuchPay)
         {
             return getMoneyAvailable().isBiggerOrEqual(howMuchPay);
         }
-        internal bool CanPayCashOnly(ReadOnlyValue howMuchPay)
+
+        public bool CanPayCashOnly(MoneyView howMuchPay)
         {
             return cash.isBiggerOrEqual(howMuchPay);
         }
@@ -240,82 +204,87 @@ namespace Nashet.EconomicSimulation
 
         /// <summary>
         /// Checks inside. Wouldn't pay if can't. Takes back deposits from bank, if needed
-        /// Doesn't pay tax, doesn't register transaction
-        /// </summary>    
-        public bool PayWithoutRecord(Agent whom, ReadOnlyValue howMuch, bool showMessageAboutNegativeValue = true)
+        /// Doesn't pay tax
+        /// </summary>
+        public bool PayWithoutRecord(Agent whom, MoneyView howMuch, Register.Account account, bool showMessageAboutNegativeValue = true)
         {
             if (CanPay(howMuch))// It does has enough cash or deposit
-            {                
-                if (CanPayCashOnly(howMuch))
-                {
-                    whom.cash.Add(howMuch);
-                    this.cash.Subtract(howMuch);
-                }
-                else
+            {
+                if (!CanPayCashOnly(howMuch))
                     Bank.ReturnDeposit(this, HowMuchLacksMoneyCashOnly(howMuch));
+                Register.RecordPayment(whom, account, howMuch);
+                whom.cash.Add(howMuch);
+                cash.Subtract(howMuch);
                 return true;
             }
             else
             {
+                FailedPayments.RecordIncomeFromNowhere(account, howMuch);
                 if (showMessageAboutNegativeValue)
-                    Debug.Log("Not enough money to pay in Agent.payWithoutRecord");
+                    Debug.Log(this + " doesn't have " + howMuch + " to pay in Agent.payWithoutRecord2 " + whom
+                        + " has " + getMoneyAvailable());
+                //PayAllAvailableMoneyWithoutRecord(whom);
                 return false;
             }
         }
+
         /// <summary>
+        /// used only to pay to stash, should be removed 
         /// Checks inside. Wouldn't pay if can't. Takes back deposits from bank, if needed
-        /// Doesn't pay tax, doesn't register transaction
-        /// </summary>    
-        public bool PayWithoutRecord(Money whom, ReadOnlyValue howMuch, bool showMessageAboutNegativeValue = true)
+        /// Doesn't pay tax
+        /// </summary>
+        // todo remove it #510
+        public bool PayWithoutRecord(Money whom, MoneyView howMuch, bool showMessageAboutNegativeValue = true)
         {
             if (CanPay(howMuch))// It does has enough cash or deposit
             {
-                if (CanPayCashOnly(howMuch))
-                {
-                    whom.Add(howMuch);
-                    this.cash.Subtract(howMuch);
-                }
-                else
+                if (!CanPayCashOnly(howMuch))
                     Bank.ReturnDeposit(this, HowMuchLacksMoneyCashOnly(howMuch));
+                whom.Add(howMuch);
+                cash.Subtract(howMuch);
                 return true;
             }
             else
             {
                 if (showMessageAboutNegativeValue)
-                    Debug.Log("Not enough money to pay in Agent.payWithoutRecord");
+                    Debug.Log(this + " doesn't have " + howMuch + " to pay in Agent.payWithoutRecord " + whom
+                        + " has " + getMoneyAvailable());
+                //PayWithoutRecord(whom, getMoneyAvailable());
                 return false;
             }
         }
+
         /// <summary>
         /// Checks inside. Wouldn't pay if can't. Takes back deposit from bank if needed
         /// Registers moneyIncomeThisTurn, pays tax. Returns true if was able to pay
-        /// </summary>    
-        public bool Pay(Agent incomeReceiver, ReadOnlyValue howMuch, bool showMessageAboutNegativeValue = true)
+        /// </summary>
+        public bool Pay(Agent incomeReceiver, MoneyView howMuch, Register.Account account, bool showMessageAboutNegativeValue = true)
         {
             if (howMuch.isNotZero())
-                if (PayWithoutRecord(incomeReceiver, howMuch, showMessageAboutNegativeValue))
+                if (PayWithoutRecord(incomeReceiver, howMuch, account, showMessageAboutNegativeValue)) // pays here
                 {
-                    // income tax calculation
-                    Value howMuchPayReally = howMuch.Copy();
-                    incomeReceiver.moneyIncomeThisTurn.Add(howMuchPayReally);
+                    Money howMuchPayReally = howMuch.Copy();
+
                     if (incomeReceiver is Market) // Market wouldn't pay taxes cause it's abstract entity
                         return true;
+
                     Agent payer = this;
 
+                    // foreigners income tax calculation
                     if (payer is Market == false //&& incomeReceiver is Market == false
-                        && payer.country != incomeReceiver.country
+                        && payer.Country != incomeReceiver.Country
                         && payer is Factory) // pay taxes in enterprise jurisdiction only if it's factory
                     {
-                        var payed = payer.country.TakeIncomeTaxFrom(incomeReceiver, howMuchPayReally, false);
+                        var payed = payer.Country.TakeIncomeTaxFrom(incomeReceiver, howMuchPayReally, false);
                         howMuchPayReally.Subtract(payed);//and reduce taxable base
                     }
 
                     // in rest cases only pops pay taxes
                     var popReceiver = incomeReceiver as PopUnit;
                     if (popReceiver != null)
-                        incomeReceiver.country.TakeIncomeTaxFrom(popReceiver, howMuchPayReally, popReceiver.Type.isPoorStrata());
+                        incomeReceiver.Country.TakeIncomeTaxFrom(popReceiver, howMuchPayReally, popReceiver.Type.isPoorStrata());
                     //else // if it's not Pop than it should by dividends from enterprise..
-                    //{ 
+                    //{
                     //    //var countryPayer = incomeReceiver as Country;
                     //    //if (countryPayer != null)
                     //        incomeReceiver.Country.TakeIncomeTaxFrom(incomeReceiver, howMuchPayReally, false);
@@ -326,23 +295,24 @@ namespace Nashet.EconomicSimulation
                     return false;
             return true;
         }
-        internal void PayAllAvailableMoney(Agent whom)
+
+        public void PayAllAvailableMoney(Agent whom, Register.Account account)
         {
             if (Bank != null)
                 Bank.ReturnAllDeposits(this);
-            Pay(whom, this.cash.Copy());
+            Pay(whom, cash, account);
         }
-        internal void PayAllAvailableMoneyWithoutRecord(Agent whom)
+
+        public void PayAllAvailableMoneyWithoutRecord(Agent whom, Register.Account account)
         {
             if (Bank != null)
                 Bank.ReturnAllDeposits(this);
-            PayWithoutRecord(whom, this.cash.Copy());
+            PayWithoutRecord(whom, cash, account);
         }
 
-
-        override public string ToString()
+        public override string ToString()
         {
-            return cash.get() + " coins";
+            return "Agent " + cash.Get();
         }
     }
 }

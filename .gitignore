@@ -31,6 +31,7 @@ sysinfo.txt
 *.apk
 *.unitypackage
 /[Rr]eleases/
+/[Ss]creens/
 /[Rr]eserv/
 
 # my edits
@@ -39,3 +40,4 @@ dev.log
 Assets/ClassDiagram.cd
 /MyTemp/
 /.vs/
+/[Bb]in/

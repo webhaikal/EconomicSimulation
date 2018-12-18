@@ -1,12 +1,12 @@
-﻿using UnityEngine;
-using System.Collections;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
-using System.Text;
+﻿using Nashet.EconomicSimulation.Reforms;
 using Nashet.UnityUIUtils;
-using Nashet.ValueSpace;
 using Nashet.Utils;
+using Nashet.ValueSpace;
+using System;
 using System.Linq;
+using System.Text;
+using UnityEngine;
+using UnityEngine.UI;
 
 namespace Nashet.EconomicSimulation
 {
@@ -14,34 +14,39 @@ namespace Nashet.EconomicSimulation
     {
         [SerializeField]
         private Button upgradeButton, reopenButton, destroyButton, buyButton, sellButton, nationalizeButton;
+
         [SerializeField]
         private Toggle subidize, dontHireOnSubsidies;
+
         [SerializeField]
         private Slider priority;
-        [SerializeField]
-        private Text generaltext, efficiencyText, caption, onSaleText, ownership;
 
+        [SerializeField]
+        private Text generaltext, efficiencyText, caption, ownership, profitText;
 
         private Factory factory;
         private reopenButtonStatus reopenButtonflag;
+
         // Use this for initialization
-        void Start()
+        private void Start()
         {
             MainCamera.factoryPanel = this;
             GetComponent<RectTransform>().anchoredPosition = new Vector2(295f, -50f);
             Hide();
         }
 
-        enum reopenButtonStatus { reopen, close };
+        private enum reopenButtonStatus
+        {
+            reopen, close
+        }
 
-
-        void setGUIElementsAccesability()
+        private void setGUIElementsAccesability()
         {
             string dynText;
-            upgradeButton.interactable = Factory.conditionsUpgrade.isAllTrue(factory, Game.Player, out dynText);
+            upgradeButton.interactable = Factory.conditionsUpgrade.isAllTrue(Game.Player, factory, out dynText);
             upgradeButton.GetComponent<ToolTipHandler>().SetTextDynamic(() => dynText + "\n\nUpgrade makes enterprise bigger");
 
-            subidize.interactable = Factory.conditionsSubsidize.isAllTrue(factory, Game.Player, out subidize.GetComponent<ToolTipHandler>().text);
+            subidize.interactable = Factory.conditionsSubsidize.isAllTrue(Game.Player, factory, out subidize.GetComponent<ToolTipHandler>().text);
 
             if (factory.IsOpen)
                 reopenButtonflag = reopenButtonStatus.close;
@@ -50,88 +55,102 @@ namespace Nashet.EconomicSimulation
             if (reopenButtonflag == reopenButtonStatus.close)
             {
                 reopenButton.GetComponentInChildren<Text>().text = "Close enterprise";
-                reopenButton.interactable = Factory.conditionsClose.isAllTrue(factory, Game.Player, out reopenButton.GetComponent<ToolTipHandler>().text);
+                reopenButton.interactable = Factory.conditionsClose.isAllTrue(Game.Player, factory, out reopenButton.GetComponent<ToolTipHandler>().text);
             }
             else
             {
-                reopenButton.interactable = Factory.conditionsReopen.isAllTrue(factory, Game.Player, out reopenButton.GetComponent<ToolTipHandler>().text);
+                reopenButton.interactable = Factory.conditionsReopen.isAllTrue(Game.Player, factory, out reopenButton.GetComponent<ToolTipHandler>().text);
                 reopenButton.GetComponentInChildren<Text>().text = "Reopen";
             }
 
-            destroyButton.interactable = Factory.conditionsDestroy.isAllTrue(factory, Game.Player, out destroyButton.GetComponent<ToolTipHandler>().text);
+            destroyButton.interactable = Factory.conditionsDestroy.isAllTrue(Game.Player, factory, out destroyButton.GetComponent<ToolTipHandler>().text);
 
-
-            nationalizeButton.interactable = Factory.conditionsNatinalize.isAllTrue(factory, Game.Player, out nationalizeButton.GetComponent<ToolTipHandler>().text);
+            nationalizeButton.interactable = Factory.conditionsNatinalize.isAllTrue(Game.Player, factory, out nationalizeButton.GetComponent<ToolTipHandler>().text);
             nationalizeButton.GetComponent<ToolTipHandler>().AddText("\nThat would make owners angry and would reduce your reputation");
 
-            this.priority.interactable = Factory.conditionsChangePriority.isAllTrue(factory, Game.Player, out priority.GetComponent<ToolTipHandler>().text);
+            priority.interactable = Factory.conditionsChangePriority.isAllTrue(Game.Player, factory, out priority.GetComponent<ToolTipHandler>().text);
             priority.GetComponent<ToolTipHandler>().text += "\n\nHighest priority enterprises get workforce first";
 
-            this.subidize.interactable = Factory.conditionsSubsidize.isAllTrue(factory, Game.Player, out subidize.GetComponent<ToolTipHandler>().text);
-            this.dontHireOnSubsidies.interactable = Factory.conditionsDontHireOnSubsidies.isAllTrue(factory, Game.Player, out dontHireOnSubsidies.GetComponent<ToolTipHandler>().text);
+            subidize.interactable = Factory.conditionsSubsidize.isAllTrue(Game.Player, factory, out subidize.GetComponent<ToolTipHandler>().text);
+            dontHireOnSubsidies.interactable = Factory.conditionsDontHireOnSubsidies.isAllTrue(Game.Player, factory, out dontHireOnSubsidies.GetComponent<ToolTipHandler>().text);
 
             priority.value = factory.getPriority();
             subidize.isOn = factory.isSubsidized();
             dontHireOnSubsidies.isOn = factory.isDontHireOnSubsidies();
         }
+
         public override void Refresh()
         {
             if (factory != null)
             {
                 setGUIElementsAccesability();
-                
+
                 caption.text = factory.FullName;
+                if (factory.isUpgrading())
+                    caption.text += ", upgrading";
+                else if (factory.isBuilding())
+                    caption.text += ", building";
+                else if (factory.IsClosed)
+                    caption.text += ", closed";
+
                 var sb = new StringBuilder();
                 sb = new StringBuilder();
                 sb.Append("Workforce: ").Append(factory.getWorkForce()).Append(", average education: ").Append(factory.AverageWorkersEducation);
-                sb.Append("\nProduced: ").Append(factory.getGainGoodsThisTurn().ToString());
-                sb.Append("\nUnsold: ").Append(factory.storage.ToString());
-                sb.Append("\nBasic production: ").Append(factory.Type.basicProduction);
-                sb.Append("\nSent to market: ").Append(factory.getSentToMarket());
-                sb.Append("\nMoney income: ").Append(factory.moneyIncomeThisTurn);
-                sb.Append(" Cash: ").Append(factory.Cash.ToString());
+                sb.Append("\nProduced: ").Append(factory.getGainGoodsThisTurn());
+                if (factory.storage.isNotZero())
+                    sb.Append(", Unsold: ").Append(factory.storage);
+                //sb.Append("\nBasic production: ").Append(factory.Type.basicProduction);
+                //sb.Append("\nSent to market: ").Append(factory.getSentToMarket());
+                //sb.Append("\n\nMoney income: ").Append(factory.moneyIncomeThisTurn);
+                //sb.Append("\n\n").Append(factory.Register.ToString());                
 
-                sb.Append("\nProfit: ");
-                if (Game.Player.economy.getValue() != Economy.PlannedEconomy)
-                    sb.Append(factory.getProfit());
-                else
-                    sb.Append("unknown");
-                sb.Append(" Dividends: ").Append(factory.GetDividends());
+
+                sb.Append("\nCash: ").Append(factory.Cash);
+                //sb.Append(", Dividends: ").Append(factory.GetDividends());
                 if (factory.Type.hasInput())
                 {
-                    sb.Append("\nInput required: ");
+                    sb.Append("\n\nInput required: ");
                     foreach (Storage next in factory.Type.resourceInput)
-                        sb.Append(next.get()* factory.getLevel() * factory.GetWorkForceFulFilling().get()).Append(" ").Append(next.Product).Append(";");
+                        sb.Append(next.get() * factory.getLevel() * factory.GetWorkForceFulFilling().get()).Append(" ").Append(next.Product).Append(";");
                 }
-                if (factory.getConsumed().Count() > 0)
-                    sb.Append("\nBought: ").Append(factory.getConsumed().ToString()).Append(" Cost: ").Append(Game.market.getCost(factory.getConsumed()));
-                //if (Game.devMode)
-                //    sb.Append("\nConsumed LT: ").Append(factory.getConsumedLastTurn());
-
-                if (factory.getInputProductsReserve().Count() > 0)
-                    sb.Append("\nInput reserves: ").Append(factory.getInputProductsReserve());
-                sb.Append("\nInput factor: ").Append(factory.getInputFactor());
-                sb.Append("\nSalary (per 1000 men): ").Append(factory.getSalary()).Append(", Salary (total): ").Append(factory.getSalaryCost());
-
+                else
+                    sb.Append("\n\nNo input required");
 
                 if (factory.constructionNeeds.Count() > 0)
                     sb.Append("\nUpgrade needs: ").Append(factory.constructionNeeds);
 
                 if (factory.getDaysInConstruction() > 0)
                     sb.Append("\nDays in construction: ").Append(factory.getDaysInConstruction());
+                if (factory.Type.hasInput() || factory.isBuilding() || factory.isUpgrading())
+                {
+                    if (factory.getInputProductsReserve().Count() > 0)
+                        sb.Append("\nStockpile: ").Append(factory.getInputProductsReserve());
+                    else
+                        sb.Append("\nStockpile: nothing");
+
+                    if (factory.getConsumed().Count() > 0)
+                        sb.Append("\nBought: ").Append(factory.getConsumed().ToString(", ")).Append(", Cost: ").Append(Game.Player.market.getCost(factory.getConsumed()));
+                }
+                if (factory.Type.hasInput())
+                    sb.Append("\nResource availability: ").Append(factory.getInputFactor());
+
+                //if (Game.devMode)
+                //    sb.Append("\nConsumed LT: ").Append(factory.getConsumedLastTurn());
+                sb.Append("\n\nSalary (per 1000 men): ").Append(factory.getSalary());
+                //sb.Append(", Total: ").Append(factory.getSalaryCost());
+
 
                 if (factory.getDaysUnprofitable() > 0)
-                    sb.Append(" Days unprofitable: ").Append(factory.getDaysUnprofitable());
+                    sb.Append("\nDays unprofitable: ").Append(factory.getDaysUnprofitable());
 
                 if (factory.getDaysClosed() > 0)
-                    sb.Append(" Days closed: ").Append(factory.getDaysClosed());
+                    sb.Append("\nDays closed: ").Append(factory.getDaysClosed());
 
-                if (factory.loans.get() > 0f)
-                    sb.Append("\nLoan: ").Append(factory.loans.ToString());
-                sb.Append("\nAssets value: ").Append(factory.ownership.GetAllAssetsValue());
+                if (factory.loans.isNotZero())
+                    sb.Append("\nLoan: ").Append(factory.loans);
+                sb.Append("\nAssets value: ").Append(factory.ownership.GetAssetsValue());
                 sb.Append(", Market value: ").Append(factory.ownership.GetMarketValue());
-
-
+                sb.Append("\nProfitability (dividends/market value): ").Append(factory.GetMargin());
                 sb.Append("\nTotal on sale: ").Append(factory.ownership.GetTotalOnSale());
                 //if (Game.devMode)
                 //    sb.Append("\nHowMuchHiredLastTurn ").Append(shownFactory.getHowMuchHiredLastTurn());
@@ -139,20 +158,31 @@ namespace Nashet.EconomicSimulation
                 //+"\nExpenses:"
 
                 efficiencyText.text = "Efficiency: " + Factory.modifierEfficiency.getModifier(factory);
-                efficiencyText.GetComponent<ToolTipHandler>().SetTextDynamic(()=> "Efficiency: " + Factory.modifierEfficiency.GetDescription(factory));
-                
+                efficiencyText.GetComponent<ToolTipHandler>().SetTextDynamic(() => "Efficiency: " + Factory.modifierEfficiency.GetDescription(factory));
 
                 var owners = factory.ownership.GetAllShares().OrderByDescending(x => x.Value.get()).ToList();//.getString(" ", "\n");
                 ownership.text = "Biggest owner: " + owners[0].Key + " " + owners[0].Value + " (hover mouse for rest)";
-                ownership.GetComponent<ToolTipHandler>().SetTextDynamic(() =>"Owners:\n"+ owners.getString(" ", "\n"));
+                ownership.GetComponent<ToolTipHandler>().SetTextDynamic(() => "Owners:\n" + owners.ToString(" ", "\n"));
+
+                sb.Clear();
+                sb.Append("Profit: ");
+                if (Game.Player.economy != Economy.PlannedEconomy)
+                    sb.Append(factory.getProfit().ToString("N3")).Append(" Gold");
+                else
+                    sb.Append("unknown");
+                profitText.text = sb.ToString();
+                profitText.GetComponent<ToolTipHandler>().SetTextDynamic(() => factory.Register.ToString());
+
                 RefreshBuySellButtons();
             }
         }
+
         public void show(Factory fact)
         {
             factory = fact;
             Show();
         }
+
         public void removeFactory(Factory fact)
         {
             if (fact == factory)
@@ -167,14 +197,17 @@ namespace Nashet.EconomicSimulation
             factory.setSubsidized(subidize.isOn);
             Refresh();
         }
+
         public void ondontHireOnSubsidiesValueChanged()
         {
             factory.setDontHireOnSubsidies(dontHireOnSubsidies.isOn);
         }
+
         public void onPriorityChanged()
         {
             factory.setPriority((int)Mathf.RoundToInt(priority.value));
         }
+
         public void onReopenClick()
         {
             if (reopenButtonflag == reopenButtonStatus.close)
@@ -186,11 +219,11 @@ namespace Nashet.EconomicSimulation
             MainCamera.topPanel.Refresh();
             if (MainCamera.financePanel.isActiveAndEnabled) MainCamera.financePanel.Refresh();
         }
+
         private void RefreshBuySellButtons()
         {
             sellButton.interactable = Factory.conditionsSell.isAllTrue(Game.Player, factory, out sellButton.GetComponent<ToolTipHandler>().text);
             buyButton.interactable = Factory.conditionsBuy.isAllTrue(Game.Player, factory, out buyButton.GetComponent<ToolTipHandler>().text);
-
 
             buyButton.GetComponentInChildren<Text>().text = "Buy " + Options.PopBuyAssetsAtTime + " shares";
 
@@ -200,39 +233,47 @@ namespace Nashet.EconomicSimulation
             else
                 sellButton.GetComponentInChildren<Text>().text = "Selling " + selling + " shares";
         }
+
         public void OnBuyClick()
         {
             factory.ownership.BuyStandardShare(Game.Player);
-            MainCamera.refreshAllActive();
+            UIEvents.RiseSomethingVisibleToPlayerChangedInWorld(EventArgs.Empty, this);
+            //MainCamera.refreshAllActive();
         }
+
         public void OnSellClick()
         {
             factory.ownership.SetToSell(Game.Player, Options.PopBuyAssetsAtTime);
             Refresh();
         }
+
         public void onUpgradeClick()
         {
             //if (shownFactory.getConditionsForFactoryUpgradeFast(Game.player))
             {
-                factory.upgrade(Game.Player);                
-                MainCamera.refreshAllActive();                
+                factory.upgrade(Game.Player);
+                //MainCamera.refreshAllActive();
+                UIEvents.RiseSomethingVisibleToPlayerChangedInWorld(EventArgs.Empty, this);
                 if (Game.Player != factory.Country)
-                    factory.Country.changeRelation(Game.Player, Options.RelationImpactOnGovernmentInvestment.get());
+                    factory.Country.Diplomacy.ChangeRelation(Game.Player, Options.RelationImpactOnGovernmentInvestment.get());
             }
         }
+
         public void onDestroyClick()
         {
             //if (shownFactory.whyCantDestroyFactory() == null)
             {
                 factory.destroyImmediately();
-                MainCamera.refreshAllActive();
+                //MainCamera.refreshAllActive();
+                UIEvents.RiseSomethingVisibleToPlayerChangedInWorld(EventArgs.Empty, this);
             }
         }
 
         public void onNationalizeClick()
         {
             Game.Player.Nationilize(factory);
-            MainCamera.refreshAllActive();
+            //MainCamera.refreshAllActive();
+            UIEvents.RiseSomethingVisibleToPlayerChangedInWorld(EventArgs.Empty, this);
         }
     }
 }

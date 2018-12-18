@@ -1,5 +1,4 @@
-﻿using UnityEngine;
-
+﻿using Nashet.EconomicSimulation.Reforms;
 using Nashet.ValueSpace;
 
 namespace Nashet.EconomicSimulation
@@ -8,14 +7,15 @@ namespace Nashet.EconomicSimulation
     {
         public Soldiers(PopUnit pop, int sizeOfNewPop, Province where, Culture culture, IWayOfLifeChange oldLife) : base(pop, sizeOfNewPop, PopType.Soldiers, where, culture, oldLife)
         { }
+
         public Soldiers(int iamount, Culture iculture, Province where) : base(iamount, PopType.Soldiers, iculture, where)
         { }
-        
+
         public override bool canThisPromoteInto(PopType targetType)
         {
             if (targetType == PopType.Aristocrats // should be officers
              || targetType == PopType.Artisans
-             || targetType == PopType.Farmers && Country.Invented(Invention.Farming)
+             || targetType == PopType.Farmers && Country.Science.IsInvented(Invention.Farming)
              )
                 return true;
             else
@@ -27,17 +27,18 @@ namespace Nashet.EconomicSimulation
             return false;
         }
 
-        internal override bool canVote(Government.ReformValue reform)
+        public override bool CanVoteWithThatGovernment(Government.GovernmentReformValue reform)
         {
             if ((reform == Government.Democracy || reform == Government.Junta)
-                && (isStateCulture() || Country.minorityPolicy.getValue() == MinorityPolicy.Equality))
+                && (isStateCulture() || Country.minorityPolicy == MinorityPolicy.Equality))
                 return true;
             else
                 return false;
         }
-        internal override int getVotingPower(Government.ReformValue reformValue)
+
+        public override int getVotingPower(Government.GovernmentReformValue reformValue)
         {
-            if (canVote(reformValue))
+            if (CanVoteWithThatGovernment(reformValue))
                 return 1;
             else
                 return 0;
@@ -45,24 +46,17 @@ namespace Nashet.EconomicSimulation
 
         public override void produce()
         {
-
         }
 
-        internal void takePayCheck()
+        public void takePayCheck()
         {
-            Value payCheck = new Value(Country.getSoldierWage());
-            payCheck.Multiply(getPopulation() / 1000f);
-            if (Country.CanPay(payCheck))
-            {
-                Country.Pay(this, payCheck);
-                Country.soldiersWageExpenseAdd(payCheck);
-                this.didntGetPromisedSalary = false;
-            }
+            Money payCheck = Country.getSoldierWage().Copy();
+            payCheck.Multiply(population.Get() / 1000m);
+
+            if (Country.Pay(this, payCheck, Register.Account.Wage))
+                didntGetPromisedSalary = false;
             else
-            {
-                this.didntGetPromisedSalary = true;
-                Country.failedToPaySoldiers = true;
-            }
+                didntGetPromisedSalary = true;
         }
     }
 }

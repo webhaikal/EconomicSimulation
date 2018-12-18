@@ -1,9 +1,7 @@
-﻿using UnityEngine;
-using System.Collections;
-using UnityEngine.UI;
-using UnityEngine.EventSystems;
-using Nashet.UnityUIUtils;
+﻿using Nashet.UnityUIUtils;
 using Nashet.Utils;
+using UnityEngine;
+using UnityEngine.UI;
 
 namespace Nashet.EconomicSimulation
 {
@@ -15,14 +13,15 @@ namespace Nashet.EconomicSimulation
         [SerializeField]
         private RawImage priceGraph;
 
-        Color32 graphColor = GUIChanger.DarkestColor;
-        Color32 backGroundColor = GUIChanger.ButtonsColor;
+        private Color32 graphColor = GUIChanger.DarkestColor;
+        private Color32 backGroundColor = GUIChanger.ButtonsColor;
 
         private Product product;
         private readonly int textureWidth = 300, textureHeight = 300;
         private Texture2D graphTexture;
+
         // Use this for initialization
-        void Start()
+        private void Start()
         {
             graphTexture = new Texture2D(textureWidth, textureHeight);
             //priceGraph = GameObject.Find("PriceGraph").GetComponent<RawImage>();
@@ -34,19 +33,19 @@ namespace Nashet.EconomicSimulation
         }
 
         // Update is called once per frame
-        void Update()
+        private void Update()
         {
             //refresh();
         }
+
         public override void Refresh()
         {
             if (product != null)
             {
-                generaltext.text = product.ToString()
-                    + "\n price: " + Game.market.getPrice(product).get() + " supply: " + Game.market.getMarketSupply(product, true).get() + " consumption: " + Game.market.getBouthOnMarket(product, true).get();
+                generaltext.text = product
+                    + "\n price: " + Game.Player.market.getCost(product).Get() + " supply: " + Game.Player.market.getMarketSupply(product, true).get() 
+                    + " consumption: " + Game.Player.market.getBouthOnMarket(product, true).get();
 
-                                
-                
                 Color32[] resetColorArray = graphTexture.GetPixels32();
 
                 for (int i = 0; i < resetColorArray.Length; i++)
@@ -55,16 +54,15 @@ namespace Nashet.EconomicSimulation
                 }
                 graphTexture.SetPixels32(resetColorArray);
                 graphTexture.Apply();
-                
 
-                var dataStorage = Game.market.priceHistory.getPool(product);
+                var dataStorage = Game.Player.market.priceHistory.getPool(product);
                 if (dataStorage != null)
                 {
                     var priceArray = dataStorage.data.ToArray();
 
                     var maxValue = priceArray.MaxBy(x => x.get());
 
-                    float yValueMultiplier = 300f / maxValue.get() * 0.99f; ;
+                    float yValueMultiplier = 300f / maxValue.get() * 0.99f;
                     if (maxValue.get() < 300f)
                         yValueMultiplier = yValueMultiplier / 2f;
 
@@ -94,22 +92,21 @@ namespace Nashet.EconomicSimulation
                                     + priceArray[nearesPointInt + 1].get() * remainsA) * yValueMultiplier);
                                 graphTexture.SetPixel(textureX, yValueMiddle, graphColor);
                             }
-                            //float dif = 
+                            //float dif =
                         }
-
-
                     }
                     graphTexture.Apply();
                     priceGraph.texture = graphTexture;
 
-                    //foreach (Value price in Game.market.priceHistory)
+                    //foreach (Value price in Country.market.priceHistory)
                     //    //graphTexture.d;;
                     //    ;
                     //priceGraph.texture = graphTexture;
                 }
             }
         }
-        //internal int getGraphPoint()
+
+        //public int getGraphPoint()
         //{ }
         public void show(Product inn)
         {

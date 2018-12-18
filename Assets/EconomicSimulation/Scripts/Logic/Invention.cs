@@ -1,104 +1,108 @@
-﻿using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;
-using System;
-using Nashet.Conditions;
-using Nashet.ValueSpace;
-using Nashet.Utils;
+﻿using Nashet.Conditions;
 using Nashet.UnityUIUtils;
+using Nashet.Utils;
+using Nashet.ValueSpace;
+using System.Collections.Generic;
+
 namespace Nashet.EconomicSimulation
 {
     public class Invention : Name, IClickable
     {
-        private readonly static List<Invention> allInventions = new List<Invention>();
-        private string description;
-        private Value cost;
-        private string inventedPhrase;
+        protected static readonly List<Invention> allInventions = new List<Invention>();
+        protected readonly string description;
+        public Value Cost { get; protected set; }
+
+        /// <summary>ICanInvent scope</summary>
+        public ConditionsList InventedPreviousTechs { get; protected set; } = new ConditionsList();
+        public Condition Invented { get; protected set; }
+
         public static readonly Invention Farming = new Invention("Farming", "Allows farming and farmers", new Value(100f)),
-            Banking = new Invention("Banking", "Allows national bank, credits and deposits. Also allows serfdom abolishment with compensation for aristocrats", new Value(100f)),
-            Manufactures = new Invention("Manufactures", "Allows building manufactures to process raw product", new Value(70f)),
-            Mining = new Invention("Mining", "Allows resource gathering from holes in ground, increasing it's efficiency by 50%", new Value(100f)),
+            Banking = new Invention("Banking",
+                "Allows national bank, credits and deposits. Also allows serfdom abolishment with compensation for aristocrats",
+                new Value(100f)),
+
+            Manufactures = new Invention("Manufactures", "Allows building manufactures to process raw product", new Value(80f)),
+            JohnKayFlyingshuttle = new Invention("John Kay's Flying shuttle", "Allows Weaver factory", new Value(60f)),
+            Mining = new Invention("Mining",
+                "Allows resource gathering from holes in ground, increasing it's efficiency by 50%",
+                new Value(100f)),
             //religion = new InventionType("Religion", "Allows clerics, gives loyalty boost", new Value(100f)),
             Metal = new Invention("Metal", "Allows metal ore and smelting. Allows Cold arms", new Value(100f)),
-            IndividualRights = new Invention("Individual rights",
-                "Allows Limited interventionism, Laissez faire, Universal Democracy, Bourgeois dictatorship",
-                new Value(80f)),//Allows Capitalism, Serfdom & Slavery abolishments
-            Collectivism = new Invention("Collectivism", "Allows Proletarian dictatorship & Planned Economy", new Value(100f)),
-            SteamPower = new Invention("Steam Power", "Allows Machinery & cement, Increases efficiency of all enterprises by 25%", new Value(100f)),
-            Welfare = new Invention("Welfare", "Allows min wage and.. other", new Value(90f)),
-            Gunpowder = new Invention("Gunpowder", "Allows Artillery & Ammunition", new Value(100f)),
-            Firearms = new Invention("Hand-held cannons", "Allows Firearms, very efficient in battles", new Value(200f)),
-            CombustionEngine = new Invention("Combustion engine", "Allows Oil, Fuel, Cars, Rubber, Increases efficiency of all enterprises by 25%", new Value(400f)),
-            Tanks = new Invention("Tanks", "Allows Tanks", new Value(800f)),
-            Airplanes = new Invention("Airplanes", "Allows Airplanes", new Value(1200f)),
-            ProfessionalArmy = new Invention("Professional Army", "Allows soldiers", new Value(200f)),
+            // Add here capitalism and link it to serfdom
+            IndividualRights = new Invention("Classical liberalism",
+                "Allows Laissez faire policy, Universal Democracy, Bourgeois dictatorship",
+                new Value(80f)),
+            Keynesianism = new Invention("Keynesianism",
+                "Allows Limited Interventionism in economy",
+                new Value(80f), IndividualRights),
 
-            Domestication = new Invention("Domestication", "Allows barnyard producing cattle. Also allows using horses in army", new Value(100f)),
-            Electronics = new Invention("Electronics", "Allows Electronics", new Value(1000f)),
+            Collectivism = new Invention("Collectivism", "Allows Proletarian dictatorship & Planned Economy", new Value(100f)),
+            SteamPower = new Invention("Steam Power",
+                "Allows Machinery & Cement, Increases efficiency of all enterprises by 25%",
+                new Value(100f), Metal, Manufactures),
+
+            Welfare = new Invention("Welfare", "Allows Unemployment Benefits and UBI", new Value(90f)),
+            Gunpowder = new Invention("Gunpowder", "Allows Artillery & Ammunition", new Value(100f), Metal),
+            Firearms = new Invention("Hand-held cannons",
+                "Allows Firearms, very efficient in battles", new Value(200f), Gunpowder),
+
+            CombustionEngine = new Invention("Combustion engine",
+                "Allows Oil, Fuel, Cars, Rubber, Increases efficiency of all enterprises by 25%",
+                new Value(400f), SteamPower),
+
+            Tanks = new Invention("Tanks", "Allows Tanks", new Value(800f), CombustionEngine),
+            Airplanes = new Invention("Airplanes", "Allows Airplanes", new Value(1200f), CombustionEngine),
+            ProfessionalArmy = new Invention("Professional Army", "Allows soldiers", new Value(200f)),
+            Domestication = new Invention("Domestication",
+                "Allows barnyard producing cattle. Also allows using horses in army",
+                new Value(100f)),
+
+            Electronics = new Invention("Electronics", "Allows Electronics", new Value(1000f), Airplanes),
             Tobacco = new Invention("Tobacco", "Allows Tobacco", new Value(100f)),
-            Coal = new Invention("Coal", "Allows coal", new Value(100f)),
-            Universities = new Invention("Universities", "Allows building of Universities", new Value(150f))
-            ;
-        readonly public static Condition ProfessionalArmyInvented = new Condition(x => (x as Country).Invented(Invention.ProfessionalArmy), "Professional Army is invented", true);
-        readonly public static Condition SteamPowerInvented = new Condition(x => (x as Country).Invented(Invention.SteamPower), "Steam Power is invented", true);
-        readonly public static Condition CombustionEngineInvented = new Condition(x => (x as Country).Invented(Invention.CombustionEngine), "Combustion Engine is invented", true);
-        readonly public static Condition IndividualRightsInvented = new Condition(x => (x as Country).Invented(Invention.IndividualRights), "Individual Rights are invented", true);
-        readonly public static Condition BankingInvented = new Condition(x => (x as Country).Invented(Invention.Banking), "Banking is invented", true);
-        readonly public static Condition WelfareInvented = new Condition(x => (x as Country).Invented(Invention.Welfare), "Welfare is invented", true);
-        readonly public static Condition CollectivismInvented = new Condition(x => (x as Country).Invented(Invention.Collectivism), "Collectivism is invented", true);
-        readonly public static Condition ManufacturesInvented = new Condition(x => (x as Country).Invented(Invention.Manufactures), "Manufactures are invented", true);
-        readonly public static Condition ManufacturesUnInvented = new Condition(x => !(x as Country).Invented(Invention.Manufactures), "Manufactures aren't invented", true);
-        internal Invention(string name, string description, Value cost) : base(name)
+            Coal = new Invention("Coal", "Allows coal", new Value(100f), Metal),
+            Universities = new Invention("Universities", "Allows building of Universities", new Value(150f));
+
+
+
+        protected Invention(string name, string description, Value cost, params Invention[] requiredInventions) : base(name)
         {
-            //this.name = name;
             this.description = description;
-            this.cost = cost;
-            inventedPhrase = "Invented " + name;
+            this.Cost = cost;
             allInventions.Add(this);
+            if (requiredInventions != null)
+                foreach (var item in requiredInventions)
+                {
+                    InventedPreviousTechs.add(new Condition(x => (x as IInventor).Science.IsInvented(item), item.ShortName + " aren't invented", true));
+                }
+            Invented = new Condition(x => (x as IInventor).Science.IsInvented(this), "Invented " + name, true);
         }
 
-        public static IEnumerable<Invention> getAll()
+        public static IEnumerable<Invention> All
         {
-            foreach (var item in allInventions)
+            get
             {
-                yield return item;
+                foreach (var item in allInventions)
+                {
+                    yield return item;
+                }
             }
         }
-        internal string getInventedPhrase()
-        {
-            return inventedPhrase;
-        }
-        public bool isAvailable(Country country)
-        {
-            if (//this == Collectivism
-                //||
-                (this == Gunpowder && !country.Invented(Metal))
-                || (this == Coal && !country.Invented(Metal))
-                || (this == SteamPower && (!country.Invented(Metal) || !country.Invented(Manufactures)))
-                || (this == Firearms && !country.Invented(Gunpowder))
-                || (this == CombustionEngine && !country.Invented(SteamPower))
-                || (this == Tanks && !country.Invented(CombustionEngine))
-                || (this == Airplanes && !country.Invented(CombustionEngine))
-                || (this == Electronics && !country.Invented(Airplanes))
-                )
-                return false;
-            else
-                return true;
 
+        public bool CanInvent(IInventor inventor)
+        {
+            return InventedPreviousTechs.isAllTrue(inventor);
         }
+
         public override string FullName
         {
             get { return description; }
         }
 
-        internal Value getCost()
-        {
-            return cost;
-        }
         public void OnClicked()
         {
-            MainCamera.inventionsPanel.selectInvention(this);
-            MainCamera.inventionsPanel.Refresh();
+            Game.Player.events.RiseClickedOn(new InventionEventArgs(this));
+            //MainCamera.inventionsPanel.selectInvention(this);
+            //MainCamera.inventionsPanel.Refresh();
         }
     }
 }

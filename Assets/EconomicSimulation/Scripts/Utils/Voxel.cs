@@ -1,17 +1,17 @@
-﻿using UnityEngine;
-using System;
+﻿using System;
 using Nashet.EconomicSimulation;
+using UnityEngine;
 
 namespace Nashet.MarchingSquares
 {
     [Serializable]
-    public class Voxel
+    public class Voxel<T>where T : class, IColorID
     {
-        Province state;
+        private T state;
 
-        Vector2 position, xEdgePosition, yEdgePosition;
+        private Vector2 position, xEdgePosition, yEdgePosition;
 
-        public Voxel(int x, int y, float size, Province state)
+        public Voxel(int x, int y, float size, T state)
         {
             position.x = (x + 0.5f) * size;
             position.y = (y + 0.5f) * size;
@@ -21,27 +21,34 @@ namespace Nashet.MarchingSquares
             yEdgePosition = position;
             yEdgePosition.y += size * 0.5f;
             this.state = state;
-            //this.state = Game.Random.Next(3) == 1;
+            //this.state = Rand.random2.Next(3) == 1;
         }
-        public Province getState()
+
+        public T getState()
         {
             return state;
         }
+
         public Vector2 getPosition()
         {
             return position;
         }
+
         public Vector2 getXEdgePosition()
         {
             return xEdgePosition;
         }
+
         public Vector2 getYEdgePosition()
         {
             return yEdgePosition;
         }
-        public Voxel() { }
 
-        public void BecomeXDummyOf(Voxel voxel, float offset)
+        public Voxel()
+        {
+        }
+
+        public void BecomeXDummyOf(Voxel<T> voxel, float offset)
         {
             state = voxel.state;
             position = voxel.position;
@@ -52,7 +59,7 @@ namespace Nashet.MarchingSquares
             yEdgePosition.x += offset;
         }
 
-        public void BecomeYDummyOf(Voxel voxel, float offset)
+        public void BecomeYDummyOf(Voxel<T> voxel, float offset)
         {
             state = voxel.state;
             position = voxel.position;
@@ -63,7 +70,7 @@ namespace Nashet.MarchingSquares
             yEdgePosition.y += offset;
         }
 
-        public void BecomeXYDummyOf(Voxel voxel, float offset)
+        public void BecomeXYDummyOf(Voxel<T> voxel, float offset)
         {
             state = voxel.state;
             position = voxel.position;

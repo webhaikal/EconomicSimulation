@@ -1,5 +1,4 @@
-﻿using UnityEngine;
-
+﻿using Nashet.EconomicSimulation.Reforms;
 using Nashet.ValueSpace;
 
 namespace Nashet.EconomicSimulation
@@ -8,25 +7,25 @@ namespace Nashet.EconomicSimulation
     {
         public Farmers(PopUnit pop, int sizeOfNewPop, Province where, Culture culture, IWayOfLifeChange oldLife) : base(pop, sizeOfNewPop, PopType.Farmers, where, culture, oldLife)
         { }
+
         public Farmers(int iamount, Culture iculture, Province where) : base(iamount, PopType.Farmers, iculture, where)
         {
-            
         }
 
-        
         public override bool canThisPromoteInto(PopType targetType)
         {
             if (targetType == PopType.Aristocrats
-              || targetType == PopType.Capitalists && Country.Invented(Invention.Manufactures)
+              || targetType == PopType.Capitalists && Country.Science.IsInvented(Invention.Manufactures)
                 )
                 return true;
             else
                 return false;
         }
+
         public override void produce()
         {
-            Storage producedAmount = new Storage(Type.getBasicProduction().Product, getPopulation() * Type.getBasicProduction().get() / 1000f);
-            producedAmount.Multiply(modEfficiency.getModifier(this), false); // could be negative with bad modifiers, defaults to zero                
+            Storage producedAmount = new Storage(Type.getBasicProduction().Product, population.Get() * Type.getBasicProduction().get() / 1000f);
+            producedAmount.Multiply(modEfficiency.getModifier(this), false); // could be negative with bad modifiers, defaults to zero
             if (producedAmount.isNotZero())
             {
                 addProduct(producedAmount);
@@ -36,30 +35,33 @@ namespace Nashet.EconomicSimulation
             if (Economy.isMarket.checkIfTrue(Country))
             {
                 //sentToMarket.set(gainGoodsThisTurn);
-                //Game.market.sentToMarket.add(gainGoodsThisTurn);
-                sell(getGainGoodsThisTurn());
+                //Country.market.sentToMarket.add(gainGoodsThisTurn);
+                if (getGainGoodsThisTurn().isNotZero())
+                    SendToMarket(getGainGoodsThisTurn());
             }
             else
             {
-                if (Country.economy.getValue() == Economy.PlannedEconomy)
+                if (Country.economy == Economy.PlannedEconomy)
                 {
                     Country.countryStorageSet.Add(getGainGoodsThisTurn());
                 }
             }
-
         }
-        override internal bool canSellProducts()
+
+        public override bool canSellProducts()
         {
             if (Economy.isMarket.checkIfTrue(Country))
                 return true;
             else
                 return false;
         }
+
         public override bool shouldPayAristocratTax()
         {
             return true;
         }
-        //internal override bool getSayingYes(AbstractReformValue reform)
+
+        //public override bool getSayingYes(AbstractReformValue reform)
         //{
         //    if (reform is Government.ReformValue)
         //    {
@@ -107,18 +109,18 @@ namespace Nashet.EconomicSimulation
         //    else
         //        return false;
         //}
-        internal override bool canVote(Government.ReformValue reform)
+        public override bool CanVoteWithThatGovernment(Government.GovernmentReformValue reform)
         {
             if ((reform == Government.Democracy || reform == Government.Polis || reform == Government.WealthDemocracy)
-                && (isStateCulture() || Country.minorityPolicy.getValue() == MinorityPolicy.Equality))
+                && (isStateCulture() || Country.minorityPolicy == MinorityPolicy.Equality))
                 return true;
             else
                 return false;
         }
 
-        internal override int getVotingPower(Government.ReformValue reformValue)
+        public override int getVotingPower(Government.GovernmentReformValue reformValue)
         {
-            if (canVote(reformValue))
+            if (CanVoteWithThatGovernment(reformValue))
                 return 1;
             else
                 return 0;

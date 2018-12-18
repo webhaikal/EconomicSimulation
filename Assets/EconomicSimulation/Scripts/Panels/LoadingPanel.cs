@@ -1,24 +1,33 @@
 ﻿using Nashet.UnityUIUtils;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+
 namespace Nashet.EconomicSimulation
 {
-    public class LoadingPanel : Hideable
+    public class LoadingPanel : Window
     {
         [SerializeField]
         private Text loadingText;
+
+        [SerializeField]
+        private GameObject mapOptionsWindowPrefab;
+
         // Use this for initialization
-        void Start()
+        private void Start()
         {
             MainCamera.loadingPanel = this;
+            var window = Instantiate(mapOptionsWindowPrefab, transform.parent);
+            window.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 0f);
         }
 
         public void updateStatus(string text)
         {
             loadingText.text = text;
+        }
+
+        public override void Refresh()
+        {
+            
         }
     }
 }

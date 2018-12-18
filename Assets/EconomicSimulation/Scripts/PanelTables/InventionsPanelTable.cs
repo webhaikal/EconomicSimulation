@@ -1,24 +1,19 @@
-﻿using UnityEngine;
-using System.Collections;
-using UnityEngine.UI;
-using System.Collections.Generic;
-using System;
-using Nashet.UnityUIUtils;
+﻿using System.Collections.Generic;
 using System.Linq;
+using Nashet.UnityUIUtils;
 
 namespace Nashet.EconomicSimulation
 {
-
     public class InventionsPanelTable : UITableNew<KeyValuePair<Invention, bool>>
     {
         protected override IEnumerable<KeyValuePair<Invention, bool>> ContentSelector()
         {
-            return Game.Player.getAllAvailableInventions().OrderBy(x=>x.Value).ThenBy(x=>x.Key.getCost().get());
+            return Game.Player.Science.AllAvailableInventions().OrderBy(x => x.Value).ThenBy(x => x.Key.Cost.get());
         }
-        
+
         protected override void AddRow(KeyValuePair<Invention, bool> invention, int number)
         {
-            // Adding invention name 
+            // Adding invention name
             AddCell(invention.Key.ToString(), invention.Key);
             ////Adding possibleStatues
             if (invention.Value)
@@ -26,11 +21,12 @@ namespace Nashet.EconomicSimulation
             else
                 AddCell("Uninvented", invention.Key);
             ////Adding invention price
-            AddCell(invention.Key.getCost().ToString(), invention.Key);
+            AddCell(invention.Key.Cost.ToString(), invention.Key);
         }
+
         protected override void AddHeader()
         {
-            // Adding invention name 
+            // Adding invention name
             AddCell("Invention");
             ////Adding possibleStatues
             AddCell("Status");

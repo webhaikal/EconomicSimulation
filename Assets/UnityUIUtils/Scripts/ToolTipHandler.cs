@@ -1,7 +1,7 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.EventSystems;
-using System.Collections;
-using System;
+
 namespace Nashet.UnityUIUtils
 {
     public class ToolTipHandler : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IHideable
@@ -13,12 +13,10 @@ namespace Nashet.UnityUIUtils
         [TextArea]
         public string text;
 
-        [SerializeField]
-        private bool isDynamic;
+        /// <summary>forces tooltip to update</summary>
+        [SerializeField]          
+        private bool isDynamic;        
 
-        [SerializeField]
-        private Hideable ownerWindow;
-                
         private bool inside;
 
         /// <summary>
@@ -26,11 +24,12 @@ namespace Nashet.UnityUIUtils
         /// </summary>
         protected void Start()
         {
+            var ownerWindow = GetComponentInParent<Hideable>();
             if (ownerWindow != null)
                 ownerWindow.Hidden += OnHiddenOwner;
         }
-        
-        void OnHiddenOwner(Hideable eventData)
+
+        private void OnHiddenOwner(Hideable eventData)
         {
             // forces tooltip to hide
             OnPointerExit(null);
@@ -38,9 +37,10 @@ namespace Nashet.UnityUIUtils
 
         public void SetTextDynamic(Func<string> dynamicString)
         {
-            this.dynamicText = dynamicString;
+            dynamicText = dynamicString;
             isDynamic = true;
         }
+
         public void SetText(string data)
         {
             text = data;
@@ -51,26 +51,29 @@ namespace Nashet.UnityUIUtils
         {
             Show();
         }
+
         public void OnPointerExit(PointerEventData eventData)
         {
             Hide();
         }
+
         public bool IsInside()
         {
             return inside;
         }
+
         private void Update()
         {
             if (IsInside() && isDynamic)
                 OnPointerEnter(null); // forces tooltip to update
         }
 
-        internal string GetText()
+        public string GetText()
         {
             return text;
         }
 
-        internal void AddText(string add)
+        public void AddText(string add)
         {
             text += add;
         }
@@ -92,6 +95,13 @@ namespace Nashet.UnityUIUtils
                     TooltipBase.get().SetTooltip(dynamicText());
                 inside = true;
             }
+        }
+
+        internal void RemoveTextStartingWith(string v)
+        {
+            var index = text.LastIndexOf(v);
+            if (index != -1)
+                text = text.Substring(0, index);
         }
     }
 }
